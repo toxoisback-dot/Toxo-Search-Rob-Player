@@ -3,6 +3,32 @@ local PROGRESS_MS = 3000
 local SEARCH_ANIM_DICT = 'amb@medic@standing@kneel@idle_a'
 local SEARCH_ANIM_NAME = 'idle_a'
 
+local DEBUG = false
+
+local function notify(optsOrType, description)
+	if type(optsOrType) == 'table' then
+		if lib and lib.notify then
+			if not optsOrType.position then optsOrType.position = 'top-right' end
+			lib.notify(optsOrType)
+		else
+			BeginTextCommandThefeedPost("STRING")
+			AddTextComponentSubstringPlayerName(optsOrType.description or '')
+			EndTextCommandThefeedPostTicker(false, false)
+		end
+		return
+	end
+
+	local notificationType = optsOrType or 'inform'
+	local message = description or ''
+	if lib and lib.notify then
+		lib.notify({ title = 'toxo_rob', description = message, type = notificationType, position = 'top-right' })
+	else
+		BeginTextCommandThefeedPost("STRING")
+		AddTextComponentSubstringPlayerName(message)
+		EndTextCommandThefeedPostTicker(false, false)
+	end
+end
+
 local function getClosestPlayer(maxDistance)
 	local playerPed = PlayerPedId()
 	local myCoords = GetEntityCoords(playerPed)
@@ -46,7 +72,7 @@ local function playSearchAnim(ped)
 		TaskStartScenarioInPlace(ped, 'CODE_HUMAN_MEDIC_TEND_TO_DEAD', 0, true)
 		Wait(200)
 		if IsPedActiveInScenario and IsPedActiveInScenario(ped) then
-			print('[ox_rob] Using scenario: CODE_HUMAN_MEDIC_TEND_TO_DEAD')
+			if DEBUG then print('[toxo_rob] Using scenario: CODE_HUMAN_MEDIC_TEND_TO_DEAD') end
 			return
 		end
 	end
@@ -55,13 +81,13 @@ local function playSearchAnim(ped)
 	TaskPlayAnim(ped, SEARCH_ANIM_DICT, SEARCH_ANIM_NAME, 8.0, -8.0, -1, 49, 0.0, false, false, false)
 	Wait(120)
 	if IsEntityPlayingAnim(ped, SEARCH_ANIM_DICT, SEARCH_ANIM_NAME, 3) then
-		print('[ox_rob] Using anim:', SEARCH_ANIM_DICT, SEARCH_ANIM_NAME)
+		if DEBUG then print('[toxo_rob] Using anim:', SEARCH_ANIM_DICT, SEARCH_ANIM_NAME) end
 		return
 	end
 
 	loadAnimDict('mini@repair')
 	TaskPlayAnim(ped, 'mini@repair', 'fixing_a_ped', 8.0, -8.0, -1, 49, 0.0, false, false, false)
-	print('[ox_rob] Using fallback anim: mini@repair fixing_a_ped')
+	if DEBUG then print('[toxo_rob] Using fallback anim: mini@repair fixing_a_ped') end
 end
 
 local function stopSearchAnim(ped)
@@ -128,13 +154,13 @@ end
 RegisterCommand('rob', function()
 	local ply, dist = getClosestPlayer(STEAL_RANGE)
 	if not ply then
-		print('[ox_rob] No player nearby')
+		notify('inform', 'No player nearby')
 		return
 	end
 
     local targetPed = GetPlayerPed(ply)
     if not (isTargetRobbableByAnim(targetPed) or isTargetRobbableByState(ply)) then
-		print('[ox_rob] Target must be downed, hands up, or cuffed')
+		notify('error', 'Target must be downed, hands up, or cuffed')
 		return
 	end
 
@@ -146,7 +172,7 @@ RegisterCommand('rob', function()
 	if targetServerId then
 		TriggerServerEvent('ox_rob:openTargetInventory', targetServerId)
 	else
-		print('[ox_rob] Failed to resolve target server id')
+		notify('error', 'Failed to resolve target server id')
 	end
 end)
 
